@@ -28,9 +28,6 @@
 
 namespace elf {
 
-// Map storing known symbol values.
-using SymMap = std::map<std::string, size_t>;
-
 // Reads an ADDEND for a relocation.
 Addr getAddend(const ELFFile &ctx, uint32_t relType, uint8_t *ptr);
 

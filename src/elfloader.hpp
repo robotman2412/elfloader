@@ -40,6 +40,9 @@
 
 namespace elf {
 
+// Map storing known symbol values.
+using SymMap = std::map<std::string, size_t>;
+
 #if SIZE_MAX > 0xFFFFFFFFLLU
 using Addr = uint64_t;
 #define ELFLOADER_ELF_IS_ELF64
