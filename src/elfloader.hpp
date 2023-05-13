@@ -261,6 +261,15 @@ struct SymEntry {
 };
 static_assert(sizeof(SymEntry) == 0x10 || sizeof(SymEntry) == 0x18, "elf::SymEntry must be either 0x10 or 0x18 bytes in size.");
 
+// Dynamic table entry.
+struct DynEntry {
+	// Type of info stored in this entry.
+	Addr tag;
+	// Pointer to data or value of entry.
+	Addr value;
+};
+static_assert(sizeof(DynEntry) == 0x08 || sizeof(DynEntry) == 0x10, "elf::DynEntry must be either 0x08 or 0x10 bytes in size.");
+
 // Relocation table entry (without addend).
 struct RelEntry {
 	// Offset in the subject section.
@@ -335,6 +344,8 @@ struct Program {
 	// Offset (vaddr_real - vaddr_req).
 	Addr vaddr_offset() const { return vaddr_real - vaddr_req; }
 	
+	// Actual address of dynamic segment, if any.
+	void *dynamic;
 	// Actual address of entrypoint.
 	void *entry;
 	// Context required to free allocated memory.

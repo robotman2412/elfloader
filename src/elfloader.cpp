@@ -411,8 +411,13 @@ Program ELFFile::load(Allocator alloc) {
 	Addr addrMin = -1;
 	Addr addrMax = 0;
 	for (const auto &prog: progHeaders) {
+		// Skip non-resident segments.
+		if (prog.type != (int) PT::LOAD) continue;
+		
+		// Compute bounds of this segment.
 		Addr al = prog.vaddr;
 		Addr ah = prog.vaddr + prog.mem_size;
+		// Simple minimum/maximum of addresses.
 		if (al < addrMin) addrMin = al;
 		if (ah > addrMax) addrMax = ah;
 	}
@@ -423,11 +428,15 @@ Program ELFFile::load(Allocator alloc) {
 	// Get memory.
 	out.vaddr_req = addrMin;
 	auto allocation = alloc(addrMin, addrMax - addrMin, align);
-	out.vaddr_real = allocation.first;
-	out.memory = (void *) out.vaddr_real;
+	out.memory = (void *) allocation.first;
 	out.memory_cookie = (void *) allocation.second;
+	
+	// Compute addresses.
+	out.vaddr_real = allocation.first;
 	out.size = addrMax - addrMin;
 	size_t offs = out.vaddr_real - addrMin;
+	
+	// Check if we did get some memory.
 	if (!out) {
 		LOGE("Unable to allocate %zu bytes for loading", out.size);
 		return {};
@@ -439,15 +448,34 @@ Program ELFFile::load(Allocator alloc) {
 		// Skip non-resident segments.
 		if (prog.type != (int) PT::LOAD) continue;
 		
+		// Read segment data.
 		fseek(fd, prog.offset, SEEK_SET);
 		size_t addr = prog.vaddr + offs;
 		fread((void *) addr, 1, prog.file_size, fd);
 		memset((void *) (addr + prog.file_size), 0, prog.mem_size - prog.file_size);
 		
+		// Debug log loaded address.
 		char r = prog.flags & 0x4 ? 'r' : '-';
 		char w = prog.flags & 0x2 ? 'w' : '-';
 		char x = prog.flags & 0x1 ? 'x' : '-';
 		LOGD("Prog 0x%x bytes at 0x%x %c%c%c", (int) prog.file_size, (int) (prog.offset + offs), r,w,x);
+	}
+	
+	// Find address of dynamic segment.
+	out.dynamic = nullptr;
+	for (const auto &prog: progHeaders) {
+		// Search for program header of type PT_DYNAMIC.
+		if (prog.type != (int) PT::DYNAMIC) continue;
+		
+		// Perform bounds check.
+		if (prog.vaddr < addrMin || prog.vaddr + prog.mem_size > addrMax) {
+			LOGE("Dynamic segment does not fall within loaded memory");
+		}
+		
+		// Calculate address.
+		out.dynamic = (void *) (prog.vaddr + offs);
+		
+		break;
 	}
 	
 	return out;
